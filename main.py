@@ -3,16 +3,37 @@ import cv2
 import mediapipe
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+from mediapipe.tasks.python.vision import GestureRecognizer
 import time
 ################################################
 
 #setup
-cap = cv2.VideoCapture(0) #nome fotocamera, nel mio caso uso la n1.
-base_options = python.BaseOptions(model_asset_path='hand_landmarker.task')
+cap = cv2.VideoCapture(1) #nome fotocamera, nel mio caso uso la n1.
+base_options = python.BaseOptions(model_asset_path='models/hand_landmarker.task')
 options = vision.HandLandmarkerOptions(base_options=base_options,running_mode=vision.RunningMode.VIDEO, num_hands=2)
 hand_landmarker = vision.HandLandmarker.create_from_options(options)
+gesture_base_options = python.BaseOptions(model_asset_path="models/gesture_recognizer.task")
+gesture_options = vision.GestureRecognizerOptions(base_options=gesture_base_options,running_mode=vision.RunningMode.VIDEO)
+gesture_recognizer = vision.GestureRecognizer.create_from_options(gesture_options)
+
 timestamp = 0
  #timestamp in millisecondi
+#detect function for switching between modes
+def detect(gesture_results,mode,fist_triggered):
+    if gesture_results.gestures:
+        gesture = gesture_results.gestures[0][0].category_name
+        if gesture == "Closed_Fist" and not fist_triggered:
+            fist_triggered = True
+            if mode < 2: #switch between modes
+                mode += 1
+            else:
+                mode = 1
+        elif gesture != "Closed_Fist":
+            fist_triggered = False
+    else:
+        gesture = None
+    return mode, gesture, fist_triggered
+    
 
 #functiont that converts mediapipe landmarks to pixel coordinates
 def landmark_to_pixel(landmark, width, height):
@@ -41,8 +62,11 @@ def drawfinger_lines(frame, hand_landmarks1,hand_landmarks2):
     cv2.line(frame, thumb1,index1,(0,0,255),2)
     cv2.line(frame, thumb2,index2,(0,0,255),2)
 
+#draw solid
+#def draw_solid(frame, hand_landmarks1,hand_landmarks2):
 
-
+fist_triggered = False
+mode = 1 #initial mode of the program.
 
 while True:
     ret, frame = cap.read()
@@ -51,20 +75,29 @@ while True:
 
     results = hand_landmarker.detect_for_video(mediapipe_frame,timestamp) #detect hands
     hand_landmarks = results.hand_landmarks
-    if hand_landmarks: #verifies if there are hands
+    gesture_results = gesture_recognizer.recognize_for_video(mediapipe_frame,timestamp) #detect gestures
+    mode, gesture, fist_triggered = detect(gesture_results,mode,fist_triggered) #detect the gesture and switch
+    gesture = gesture_results.gestures[0][0].category_name if gesture_results.gestures else None
+    cv2.putText(frame, f"Gesture: {gesture}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    if hand_landmarks:
         for hand in hand_landmarks:
             draw_point(frame, hand) #draw points on camera
         if len(hand_landmarks) == 2: #if there are two hands
-            hand1,hand2 = hand_landmarks[0],hand_landmarks[1] #get the two hands
-            drawfinger_lines(frame,hand1,hand2)
-
+            #detect(hand_landmarks) #detect the gesture and switch
+            match mode:
+                case 1:
+                    hand1,hand2 = hand_landmarks[0],hand_landmarks[1] #get the two hands
+                    drawfinger_lines(frame,hand1,hand2)
+                case 2:
+                    pass
+                    
 
 
 
 
     timestamp += 33 #a quanti frame al secondo imposto il frame, 33 equivalentea a 30 fps
     cv2.imshow("Webcam", frame) #mostra i drawings sulla webcam
-    print(f"Frame read: {ret},{bool(results.hand_landmarks)}") #stampa True se la videocamera è attiva, False se non lo è #processa il frame con mediapipe
+    #print(f"Frame read: {ret},{bool(results.hand_landmarks)}") #stampa True se la videocamera è attiva, False se non lo è #processa il frame con mediapipe
     if cv2.waitKey(1) & 0xFF == ord('q'): #stoppa se premi il tasto 'q'
         break
 
