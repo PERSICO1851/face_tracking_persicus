@@ -62,7 +62,7 @@ while True:
 
 
 
-    timestamp += 33
+    timestamp += 33 #a quanti frame al secondo imposto il frame, 33 equivalentea a 30 fps
     cv2.imshow("Webcam", frame) #mostra i drawings sulla webcam
     print(f"Frame read: {ret},{bool(results.hand_landmarks)}") #stampa True se la videocamera è attiva, False se non lo è #processa il frame con mediapipe
     if cv2.waitKey(1) & 0xFF == ord('q'): #stoppa se premi il tasto 'q'
