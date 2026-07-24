@@ -4,6 +4,7 @@ import mediapipe
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.vision import GestureRecognizer
+import numpy as np
 import time
 ################################################
 
@@ -48,7 +49,7 @@ def draw_point(frame, hand_landmarks):
     height, width, _ = frame.shape
     for landmark in hand_landmarks:
         x,y = landmark_to_pixel(landmark, width, height) #convert from cartesian points to pixel coordinates 
-        cv2.circle(frame, (x, y), 3, (0, 255, 0), -2)
+        cv2.circle(frame, (x, y), 3, (0, 0, 0), -2)
 
 #draw finger lines 
 def drawfinger_lines(frame, hand_landmarks1,hand_landmarks2):
@@ -61,9 +62,28 @@ def drawfinger_lines(frame, hand_landmarks1,hand_landmarks2):
     cv2.line(frame,index1,index2,(0,0,255),2)
     cv2.line(frame, thumb1,index1,(0,0,255),2)
     cv2.line(frame, thumb2,index2,(0,0,255),2)
+    cv2.fillConvexPoly(frame, np.array([thumb1, thumb2, index2, index1]), (0, 0, 255),) #fill the area between the lines with red color
+#draw solid lines 
+def draw_solid(frame, hand_landmarks1,hand_landmarks2):
+    height, width, _ = frame.shape
+    thumb_tip = landmark_to_pixel(hand_landmarks1[4], width, height)
+    middle_tip = landmark_to_pixel(hand_landmarks1[8], width, height)
+    ring_tip = landmark_to_pixel(hand_landmarks1[16], width, height)
+    pinky_tip = landmark_to_pixel(hand_landmarks1[20], width, height)
+    thumb_tip2 = landmark_to_pixel(hand_landmarks2[4], width, height)
+    middle_tip2 = landmark_to_pixel(hand_landmarks2[8], width, height)
+    ring_tip2 = landmark_to_pixel(hand_landmarks2[16], width, height)
+    pinky_tip2 = landmark_to_pixel(hand_landmarks2[20], width, height)
+    #creation of the base quadrilateral for the solid shape
+    cv2.polylines(frame,np.array([[thumb_tip, middle_tip, ring_tip, pinky_tip]]),True,(0,0,255),2)
+    cv2.polylines(frame,np.array([[thumb_tip2, middle_tip2, ring_tip2, pinky_tip2]]),True,(0,0,255),2) #polylines function draws lines betweeen a set of points created by np.array
+    #connect points for creating the solid
+    cv2.line(frame, thumb_tip, thumb_tip2, (0, 0, 255), 2)
+    cv2.line(frame, middle_tip, middle_tip2, (0, 0, 255), 2)
+    cv2.line(frame, ring_tip, ring_tip2, (0, 0, 255), 2)
+    cv2.line(frame, pinky_tip, pinky_tip2, (0, 0, 255), 2)
+    #
 
-#draw solid
-#def draw_solid(frame, hand_landmarks1,hand_landmarks2):
 
 fist_triggered = False
 mode = 1 #initial mode of the program.
@@ -89,7 +109,8 @@ while True:
                     hand1,hand2 = hand_landmarks[0],hand_landmarks[1] #get the two hands
                     drawfinger_lines(frame,hand1,hand2)
                 case 2:
-                    pass
+                    hand1,hand2 = hand_landmarks[0],hand_landmarks[1] #get the two hands
+                    draw_solid(frame,hand1,hand2)
                     
 
 
