@@ -6,6 +6,8 @@ from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.vision import GestureRecognizer
 import numpy as np
 import time
+import random
+import random
 ################################################
 
 #setup
@@ -25,7 +27,7 @@ def detect(gesture_results,mode,fist_triggered):
         gesture = gesture_results.gestures[0][0].category_name
         if gesture == "Closed_Fist" and not fist_triggered:
             fist_triggered = True
-            if mode < 2: #switch between modes
+            if mode < 3: #switch between modes
                 mode += 1
             else:
                 mode = 1
@@ -83,9 +85,55 @@ def draw_solid(frame, hand_landmarks1,hand_landmarks2):
     cv2.line(frame, ring_tip, ring_tip2, (0, 0, 255), 2)
     cv2.line(frame, pinky_tip, pinky_tip2, (0, 0, 255), 2)
     #
+def draw_mask(frame, hand_landmarks1, hand_landmarks2):
+    # Use thumb1, thumb2, index1, index2 to form a rectangle
+    h, w, _ = frame.shape
+    thumb1 = landmark_to_pixel(hand_landmarks1[4], w, h)
+    thumb2 = landmark_to_pixel(hand_landmarks2[4], w, h)
+    index1 = landmark_to_pixel(hand_landmarks1[8], w, h)
+    index2 = landmark_to_pixel(hand_landmarks2[8], w, h)
+
+    cv2.polylines(frame, np.array([[thumb1, thumb2, index2, index1]]), True, (0, 0, 0), 2)  # Draw the rectangle outline
+    poly = np.array([thumb1, thumb2, index2, index1], dtype=np.int32) #points 
+
+    # create single-channel mask and fill rectangle
+    mask = np.zeros((h, w), dtype=np.uint8)
+    cv2.fillPoly(mask, [poly], 255) #creat the fill mask
+
+    # create a semi-transparent colored overlay inside the rectangle
+    overlay = frame.copy()
+    cv2.fillPoly(overlay, [poly], (0, 0, 255))
+    alpha = 0.35 #livello trasparenza 
+    blended = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
+
+    # create glitch effect and apply it only where mask is present
+    glitch = create_glitch(frame)
+    frame[mask == 255] = glitch[mask == 255]
+
+    return
+
+def create_glitch(frame):
+    glitch = frame.copy()
+    h, w = frame.shape[:2]
+
+    # Creiamo alcune bande glitch casuali
+    for i in range(10):
+        y = random.randint(0, max(0, h - 1))
+        height = random.randint(2, min(20, max(2, h // 10)))
+        shift = random.randint(-50, 50)
+        y2 = min(y + height, h)
+
+        # copia la fascia per evitare view condivise
+        stripe = frame[y:y2, :].copy()
+        stripe_shifted = np.roll(stripe, shift, axis=1)
+        glitch[y:y2, :] = stripe_shifted
+
+    return glitch
+
+    return glitch
 
 
-fist_triggered = False
+fist_triggered = False 
 mode = 1 #initial mode of the program.
 
 while True:
@@ -111,6 +159,10 @@ while True:
                 case 2:
                     hand1,hand2 = hand_landmarks[0],hand_landmarks[1] #get the two hands
                     draw_solid(frame,hand1,hand2)
+                case 3:
+                    hand1,hand2 = hand_landmarks[0],hand_landmarks[1] #get the two hands
+                    draw_mask(frame, hand1, hand2)
+
                     
 
 
