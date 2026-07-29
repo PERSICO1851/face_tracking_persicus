@@ -27,7 +27,7 @@ def detect(gesture_results,mode,fist_triggered):
         gesture = gesture_results.gestures[0][0].category_name
         if gesture == "Closed_Fist" and not fist_triggered:
             fist_triggered = True
-            if mode < 3: #switch between modes
+            if mode < 4: #switch between modes
                 mode += 1
             else:
                 mode = 1
@@ -132,6 +132,15 @@ def create_glitch(frame):
 
     return glitch
 
+def create_circle(frame, hand_landmarks1, hand_landmarks2):
+    h, w, _ = frame.shape
+    center1 = landmark_to_pixel(hand_landmarks1[9], w, h)
+    center2 = landmark_to_pixel(hand_landmarks2[9], w, h)
+    middle_point = ((center1[0] + center2[0]) // 2, (center1[1] + center2[1]) // 2)
+    radius = int(np.sqrt((center1[0] - center2[0]) ** 2 + (center1[1] - center2[1]) ** 2) // 5)
+    cv2.circle(frame,middle_point, radius, (0, 0, 255), -1) #draw a circle in the middle of the two hands
+    
+
 
 fist_triggered = False 
 mode = 1 #initial mode of the program.
@@ -162,6 +171,9 @@ while True:
                 case 3:
                     hand1,hand2 = hand_landmarks[0],hand_landmarks[1] #get the two hands
                     draw_mask(frame, hand1, hand2)
+                case 4:
+                    hand1,hand2 = hand_landmarks[0],hand_landmarks[1] #get the two hands
+                    create_circle(frame, hand1, hand2) #create a circle in the middle of the two hands
 
                     
 
